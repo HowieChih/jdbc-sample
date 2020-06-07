@@ -1,14 +1,12 @@
 package org.sample;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
+import com.mysql.cj.protocol.Resultset;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 
 public class AppTest {
 
@@ -27,6 +25,20 @@ public class AppTest {
         dataSource.setProfileSQL(true);
         connection = dataSource.getConnection();
         connection.setAutoCommit(false);
+    }
+
+    @Test
+    public void checkMetaData() throws SQLException{
+        DatabaseMetaData databaseMetaData = connection.getMetaData();
+
+        System.out.println(databaseMetaData.supportsResultSetType(ResultSet.TYPE_FORWARD_ONLY));
+        System.out.println(databaseMetaData.supportsResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE));
+        System.out.println(databaseMetaData.supportsResultSetType(ResultSet.TYPE_SCROLL_SENSITIVE));
+
+        System.out.println(databaseMetaData.supportsResultSetConcurrency(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE));
+
+        System.out.println(databaseMetaData.getResultSetHoldability());
+        System.out.println(databaseMetaData.supportsResultSetHoldability(ResultSet.CLOSE_CURSORS_AT_COMMIT));
     }
 
     @Test
@@ -100,6 +112,42 @@ public class AppTest {
             }
         }
         ps.executeBatch();
+    }
+
+    @Test
+    public void rsTypeAndConcur() throws SQLException {
+        String sql = "select * from user";
+        PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+        ResultSet resultSet = ps.executeQuery();
+        resultSet.absolute(2);
+        resultSet.updateString("name", "English");
+        resultSet.updateRow();
+        System.out.print(resultSet.getObject("id") + " | ");
+        System.out.println(resultSet.getObject("name"));
+    }
+
+    @Test
+    public void fetchSize() throws SQLException {
+        String sql = "select * from user";
+        PreparedStatement ps = connection.prepareStatement(sql);
+        ps.setFetchSize(2);
+        ResultSet resultSet = ps.executeQuery();
+        while (resultSet.next()) {
+            System.out.print(resultSet.getObject("id") + " | ");
+            System.out.println(resultSet.getObject("name"));
+        }
+    }
+
+    @Test
+    public void streamRead() throws SQLException{
+        String sql = "select * from user";
+        PreparedStatement stmt = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+        stmt.setFetchSize(Integer.MIN_VALUE);
+        ResultSet resultSet = stmt.executeQuery();
+        while (resultSet.next()) {
+            System.out.print(resultSet.getObject("id") + " | ");
+            System.out.println(resultSet.getObject("name"));
+        }
     }
 
     @After
